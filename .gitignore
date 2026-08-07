@@ -1,0 +1,4 @@
+.env
+server.log
+server-error.log
+supabase/.generated/

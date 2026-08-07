@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Księga gości</title>
+  <style>
+    :root{color:#242424;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-synthesis:none}*{box-sizing:border-box}body{margin:0;min-width:320px;min-height:100vh;background:#f8f8fa}main{width:min(100% - 40px,720px);margin:0 auto;padding:64px 0 80px}.eyebrow{margin:0 0 10px;color:#858585;font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase}h1{margin:0;font-size:clamp(38px,6vw,52px);line-height:1;letter-spacing:-2.2px}.intro{margin:16px 0 36px;color:#747474;font-size:16px}.card{padding:24px;border:1px solid #f0f0f0;border-radius:15px;background:#fff;box-shadow:0 10px 25px rgb(20 25 35/7%)}form{display:flex;align-items:center;gap:12px;padding:8px 9px 8px 20px;border:1px solid #f0f0f0;border-radius:15px;background:#fff;box-shadow:0 10px 25px rgb(20 25 35/7%)}#formularz-logowania{display:grid;padding:24px}.field{display:grid;gap:7px}.field label{font-size:13px;font-weight:700}.field input{min-height:44px;padding:0 13px;border:1px solid #ddd;border-radius:10px}input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:#262626;font:inherit}input::placeholder{color:#929292}.form-actions,.account{display:flex;align-items:center;gap:8px}.account{justify-content:space-between;margin-bottom:16px;color:#747474;font-size:13px}button{flex:0 0 auto;min-height:44px;padding:0 20px;border:0;border-radius:11px;background:#087be5;color:#fff;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 4px 10px rgb(8 123 229/20%)}button:hover{background:#006dcc}button:focus-visible,input:focus-visible{outline:3px solid rgb(8 123 229/25%)}button:disabled{cursor:wait;opacity:.65}.secondary,.ai-button{border:1px solid #d9e9fa;background:#eff7ff;color:#086fc9;box-shadow:none}.secondary:hover,.ai-button:hover{background:#e1f0ff}.secondary{min-height:36px;padding:0 14px}.message{min-height:20px;margin:8px 2px 0;color:#c83232;font-size:13px}.hint{margin:2px 0 0;color:#858585;font-size:12px}h2{margin:21px 0 13px;color:#858585;font-size:12px;font-weight:700}ul{display:grid;gap:12px;margin:0;padding:0;list-style:none}li{min-height:82px;padding:20px;border:1px solid #f2f2f2;border-radius:15px;background:#fff;box-shadow:0 9px 22px rgb(20 25 35/5%)}.entry-text{margin:0 0 8px;font-size:16px;line-height:1.35;overflow-wrap:anywhere}time{display:block;color:#8b8b8b;font-size:12px}.empty{color:#777;text-align:center}[hidden]{display:none!important}@media(max-width:560px){main{width:min(100% - 28px,720px);padding-top:42px}#formularz-wpisu{align-items:stretch;flex-direction:column;padding:14px}#tekst{min-height:42px;padding:0 4px}.form-actions{display:grid;grid-template-columns:1fr 1fr}.form-actions button{width:100%;padding-inline:12px}}
+  </style>
+</head>
+<body>
+<main>
+  <header><p class="eyebrow">Zostaw po sobie ślad</p><h1>Księga gości</h1><p class="intro">Zaloguj się, aby przeczytać wpisy i zostawić własny.</p></header>
+  <section id="widok-logowania" class="card" aria-labelledby="tytul-logowania">
+    <h2 id="tytul-logowania">LOGOWANIE</h2>
+    <form id="formularz-logowania">
+      <div class="field"><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="haslo">Hasło</label><input id="haslo" type="password" autocomplete="current-password" required></div>
+      <button type="submit">Zaloguj się</button>
+      <p class="hint">Konta tworzy wyłącznie administrator. Publiczna rejestracja jest niedostępna.</p>
+    </form>
+    <p id="blad-logowania" class="message" role="alert"></p>
+  </section>
+  <section id="aplikacja" hidden>
+    <div class="account"><span id="uzytkownik"></span><button id="wyloguj" class="secondary" type="button">Wyloguj</button></div>
+    <form id="formularz-wpisu">
+      <input id="tekst" name="tekst" type="text" placeholder="Napisz swój wpis..." aria-label="Treść wpisu" required maxlength="500">
+      <div class="form-actions"><button class="ai-button" id="podpowiedz" type="button">✦ Podpowiedz z AI</button><button type="submit">Dodaj wpis</button></div>
+    </form>
+    <p id="blad" class="message" role="alert"></p>
+    <section aria-labelledby="tytul-wpisow"><h2 id="tytul-wpisow">Najnowsze wpisy</h2><ul id="lista-wpisow"></ul></section>
+  </section>
+</main>
+<script type="module">
+  const loginView=document.querySelector('#widok-logowania'),app=document.querySelector('#aplikacja'),loginForm=document.querySelector('#formularz-logowania'),loginError=document.querySelector('#blad-logowania'),entryForm=document.querySelector('#formularz-wpisu'),entryInput=document.querySelector('#tekst'),list=document.querySelector('#lista-wpisow'),errorBox=document.querySelector('#blad'),aiButton=document.querySelector('#podpowiedz'),userLabel=document.querySelector('#uzytkownik');
+  let config,session;
+  const saved=localStorage.getItem('ksiega-session'); if(saved){try{session=JSON.parse(saved)}catch{localStorage.removeItem('ksiega-session')}}
+  async function json(response){const type=response.headers.get('content-type')||'';return type.includes('application/json')?response.json():{error:await response.text()||`Błąd ${response.status}.`}}
+  async function api(url,options={}){const headers={...(options.headers||{}),Authorization:`Bearer ${session?.access_token||''}`};const response=await fetch(url,{...options,headers});if(response.status===401){logout();throw new Error('Sesja wygasła. Zaloguj się ponownie.')}return response}
+  function showApp(){loginView.hidden=true;app.hidden=false;userLabel.textContent=session?.user?.email||'Zalogowano';loadEntries().catch(e=>errorBox.textContent=e.message)}
+  function logout(){session=null;localStorage.removeItem('ksiega-session');app.hidden=true;loginView.hidden=false;loginForm.reset()}
+  function formatDate(date){return new Intl.DateTimeFormat('pl-PL',{day:'numeric',month:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(date)}
+  async function loadEntries(){const response=await api('/wpisy');if(!response.ok)throw new Error('Nie udało się pobrać wpisów.');const entries=await json(response);list.replaceChildren();if(!entries.length){const empty=document.createElement('li');empty.className='empty';empty.textContent='Brak wpisów. Zostaw pierwszy ślad!';list.append(empty);return}for(const entry of entries){const item=document.createElement('li'),text=document.createElement('p'),date=document.createElement('time');text.className='entry-text';text.textContent=entry.tekst;date.dateTime=entry.data_dodania;date.textContent=formatDate(new Date(entry.data_dodania));item.append(text,date);list.append(item)}}
+  loginForm.addEventListener('submit',async event=>{event.preventDefault();loginError.textContent='';const button=loginForm.querySelector('button');button.disabled=true;try{const response=await fetch(`${config.supabaseUrl}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:config.supabasePublishableKey,'Content-Type':'application/json'},body:JSON.stringify({email:document.querySelector('#email').value,password:document.querySelector('#haslo').value})});const data=await json(response);if(!response.ok)throw new Error('Nieprawidłowy e-mail lub hasło.');session=data;localStorage.setItem('ksiega-session',JSON.stringify(session));showApp()}catch(e){loginError.textContent=e.message}finally{button.disabled=false}})
+  entryForm.addEventListener('submit',async event=>{event.preventDefault();errorBox.textContent='';try{const response=await api('/wpisy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tekst:entryInput.value})});const data=await json(response);if(!response.ok)throw new Error(data.error||'Nie udało się dodać wpisu.');entryInput.value='';await loadEntries()}catch(e){errorBox.textContent=e.message}})
+  aiButton.addEventListener('click',async()=>{errorBox.textContent='';if(!entryInput.value.trim()){errorBox.textContent='Najpierw wpisz kilka słów, które AI ma rozwinąć.';entryInput.focus();return}const label=aiButton.textContent;aiButton.disabled=true;aiButton.textContent='Tworzę...';try{const response=await api('/podpowiedz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({temat:entryInput.value.trim()})});const data=await json(response);if(!response.ok)throw new Error(data.error||'Nie udało się utworzyć podpowiedzi.');entryInput.value=data.podpowiedz;entryInput.focus()}catch(e){errorBox.textContent=e.message}finally{aiButton.disabled=false;aiButton.textContent=label}})
+  document.querySelector('#wyloguj').addEventListener('click',async()=>{if(session?.access_token)await fetch(`${config.supabaseUrl}/auth/v1/logout`,{method:'POST',headers:{apikey:config.supabasePublishableKey,Authorization:`Bearer ${session.access_token}`}}).catch(()=>{});logout()});
+  try{const response=await fetch('/config');config=await json(response);if(!response.ok)throw new Error(config.error||'Brak konfiguracji Supabase.');if(session?.access_token){const verify=await fetch(`${config.supabaseUrl}/auth/v1/user`,{headers:{apikey:config.supabasePublishableKey,Authorization:`Bearer ${session.access_token}`}});if(verify.ok)showApp();else logout()}}catch(e){loginError.textContent=e.message}
+</script>
+</body>
+</html>
